@@ -7,15 +7,15 @@ It ships its logs automatically to Logz.io via SSL so everything is encrypted.
 The container also provides a Nagios plugin script that uses local caches from the regular monitoring routine, so you won't overload your ES cluster with unnecessary queries.
 
 The containers monitors these values:
-1. Number of initializing shards
-2. Number of pending tasks
-3. Description of pending tasks (name, time in queue, urgency, etc..)
-4. Number of relocating shards
-5. Number of unassigned shards
-6. Cluster status (red, yellow, green)
-7. Mapping size - entire cluster (python length of the cluster state)
-8. Mapping size - per index (python length of a specific index from cluster state)
-9. Cluster state version
+- Number of initializing shards
+- Number of pending tasks
+- Description of pending tasks (name, time in queue, urgency, etc..)
+- Number of relocating shards
+- Number of unassigned shards
+- Cluster status (red, yellow, green)
+- Mapping size - entire cluster (python length of the cluster state)
+- Mapping size - per index (python length of a specific index from cluster state)
+- Cluster state version
 
 ***
 ## Usage (docker run)
