@@ -27,9 +27,6 @@
 import os, requests, datetime, time, sys, json, re
 from threading import Thread, Condition
 
-fthread = open("/thread", "w")
-fmain = open("/main", "w")
-
 # Gets optional variables
 listener = os.getenv('LISTENER', 'listener.logz.io:8091')
 interval = os.getenv('INTERVAL_SECONDS', 30)
@@ -80,7 +77,8 @@ def queryClusterState():
 			"@timestamp" : kibanaTimestamp,
 			"type" : "elasticsearch-health",
 			"clusterstate_version" : state["version"],
-			"clusterstate_mapping_size" : clusterStateSize
+			"clusterstate_mapping_size" : clusterStateSize,
+			"cluster_name" : clusterName
 		}
 
 		# Open cache file
@@ -115,7 +113,8 @@ def queryClusterState():
 				"type" : "elasticsearch-health",
 				"clusterstate_index_name" : index,
 				"clusterstate_index_prefix" : accountPrefix,
-				"clusterstate_index_size" : len(json.dumps(state["metadata"]["indices"][index]["mappings"]))
+				"clusterstate_index_size" : len(json.dumps(state["metadata"]["indices"][index]["mappings"])),
+				"cluster_name" : clusterName
 			}
 
 			# Append it to the list
@@ -137,6 +136,9 @@ def queryClusterState():
 		# Sleep for cluster state interval (using a conditional lock here because time.sleep causes deadlocks in some cases for some reason)
 		lock.wait(stateInterval)
 
+# Query the cluster root once, to get the cluster name
+clusterRoot = requests.get("http://{0}:9200/".format(elasticsearchAddr)).json()
+clusterName = clusterRoot["cluster_name"]
 
 # Start a different thread to query cluster state
 thread = Thread(target=queryClusterState)
@@ -163,6 +165,9 @@ while True:
 
 	# Append the timestamp
 	healthJson[u"@timestamp"] = kibanaTimestamp
+
+	# And the cluster name
+	healthJson[u"cluster_name"] = clusterName
 
 	# Add it to list
 	listJsons.append(healthJson)
@@ -194,6 +199,9 @@ while True:
 
 		# Append the timestamp
 		task[u"@timestamp"] = kibanaTimestamp
+
+		# And the cluster name
+		task[u"cluster_name"] = clusterName
 
 		# Save it to the list
 		listJsons.append(task)
