@@ -36,6 +36,8 @@ stateInterval = os.getenv('CLUSTERSTATE_SECONDS', 3600)
 logzToken = os.getenv('LOGZ_TOKEN')
 elasticsearchAddr = os.getenv('ELASTICSEARCH_ADDR')
 
+elasticsearchType = "elasticsearch-health"
+
 # Check if both mandatory are set
 if not all([logzToken, elasticsearchAddr]):
 
@@ -110,7 +112,7 @@ def queryClusterState():
 
 				"token" : logzToken,
 				"@timestamp" : kibanaTimestamp,
-				"type" : "elasticsearch-health",
+				"type" : elasticsearchType,
 				"clusterstate_index_name" : index,
 				"clusterstate_index_prefix" : accountPrefix,
 				"clusterstate_index_size" : len(json.dumps(state["metadata"]["indices"][index]["mappings"])),
@@ -139,6 +141,7 @@ def queryClusterState():
 # Query the cluster root once, to get the cluster name
 clusterRoot = requests.get("http://{0}:9200/".format(elasticsearchAddr)).json()
 clusterName = clusterRoot["cluster_name"]
+lastDocCount = None
 
 # Start a different thread to query cluster state
 thread = Thread(target=queryClusterState)
@@ -161,13 +164,25 @@ while True:
 	healthJson[u"token"] = logzToken
 
 	# Append the type
-	healthJson[u"type"] = "elasticsearch-health"
+	healthJson[u"type"] = elasticsearchType
 
 	# Append the timestamp
 	healthJson[u"@timestamp"] = kibanaTimestamp
 
 	# And the cluster name
 	healthJson[u"cluster_name"] = clusterName
+
+	# Query the doc count
+	clusterStatsJson = requests.get("http://{0}:9200/_cluster/stats".format(elasticsearchAddr)).json()
+
+	# Only fire the document if its not our first reading, so we will have delta
+	if lastDocCount:
+
+		# Add the delta
+		healthJson[u"docs_since_last_read"] = int(clusterStatsJson["indices"]["docs"]["count"] - lastDocCount)
+
+	# Update the latest reading
+	lastDocCount = clusterStatsJson["indices"]["docs"]["count"]
 
 	# Add it to list
 	listJsons.append(healthJson)
@@ -195,7 +210,7 @@ while True:
 		task[u"token"] = logzToken
 
 		# Append the type
-		task[u"type"] = "elasticsearch-health"
+		task[u"type"] = elasticsearchType
 
 		# Append the timestamp
 		task[u"@timestamp"] = kibanaTimestamp
@@ -206,6 +221,43 @@ while True:
 		# Save it to the list
 		listJsons.append(task)
 
+	# Getting nodes JVM usage
+	nodesJson = requests.get("http://{0}:9200/_nodes/stats".format(elasticsearchAddr)).json()
+
+	# Iterate over the nodes
+	for currNode in nodesJson["nodes"]:
+
+		# Json placeholder
+		nodesHolder = {}
+
+		# Append the logz.io token
+		nodesHolder[u"token"] = logzToken
+
+		# Append the type
+		nodesHolder[u"type"] = elasticsearchType
+
+		# Append the timestamp
+		nodesHolder[u"@timestamp"] = kibanaTimestamp
+
+		# And the cluster name
+		nodesHolder[u"cluster_name"] = clusterName
+
+		# Add the node name
+		nodesHolder[u"node_name"] = nodesJson["nodes"][currNode]["name"]
+
+		# Add the current heap size
+		nodesHolder[u"heap_used_percent"] = nodesJson["nodes"][currNode]["jvm"]["mem"]["heap_used_percent"]
+
+		# Add thread pools
+		for currThreadPool in nodesJson["nodes"][currNode]["thread_pool"]:
+
+			# Get what is interesting to us
+			nodesHolder[u"{0}-queue".format(currThreadPool)] = nodesJson["nodes"][currNode]["thread_pool"][currThreadPool]["queue"]
+			nodesHolder[u"{0}-rejected".format(currThreadPool)] = nodesJson["nodes"][currNode]["thread_pool"][currThreadPool]["rejected"]
+
+		# Add to list
+		listJsons.append(nodesHolder)
+
 	# Iterate over the jsons and sends them
 	for currJson in listJsons:
 
@@ -215,6 +267,12 @@ while True:
 	# Force free memory because python doesnt know we dont need that anymore for the next 30 seconds
 	del listJsons[:]
 	del listJsons
+
+	# Remove all jsons
+	del healthJson
+	del clusterStatsJson
+	del tasksJson
+	del nodesJson
 
 	# Sleeps for interval!
 	time.sleep(interval)
