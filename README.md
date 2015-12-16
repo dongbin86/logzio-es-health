@@ -16,6 +16,9 @@ The containers monitors these values:
 - Mapping size - entire cluster (python length of the cluster state)
 - Mapping size - per index (python length of a specific index from cluster state)
 - Cluster state version
+- JVM heap per node
+- Threadpools queue and rejected per node
+- Number of docs between readings (to calculate index rate)
 
 ***
 ## Usage (docker run)
