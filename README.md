@@ -27,8 +27,13 @@ The containers monitors these values:
 **ELASTICSEARCH_ADDR** - Your elasticsearch cluster to monitor, without protocol and port. Currently supporting only HTTP, and monitoring via the RESTful endpoint at :9200
 
 #### Optional
-**INTERVAL_SECONDS** - Number of seconds to sleep between each /_cluster/health and /_cluster/pending_tasks call. Default: 30
-**CLUSTERSTATE_SECONDS** - Number of seconds to sleep between each /_cluster/state call. Default: 3600 (For large clusters this is a heavy query, so be gentle with reducing this interval)
+**INTERVAL_SECONDS** - Number of seconds to sleep between each /_cluster/health and /_cluster/pending_tasks call. Default: 30  
+**CLUSTERSTATE_SECONDS** - Number of seconds to sleep between each /_cluster/state call. Default: 3600 (For large clusters this is a heavy query, so be gentle with reducing this interval)  
+**LISTENER** - Logz.io Listener address. Default: "https://listener.logz.io:8071"  
+**ES_PROTOCOL** - Elasticsearch http protocol. Default: "http"  
+**ES_PORT** - Elasticsearch http port. Default: "9200"  
+**ES_USER** - Basic auth user  
+**ES_PORT** - Basic auth password  
 
 ### Example
 ```bash
